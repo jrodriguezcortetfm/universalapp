@@ -1,0 +1,9 @@
+flask
+pandas
+scikit-learn==1.3.0
+SQLAlchemy
+google-auth
+google-api-python-client
+cloud-sql-python-connector
+pymysql
+gunicorn==20.1.0
