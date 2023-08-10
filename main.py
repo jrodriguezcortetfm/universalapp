@@ -1,36 +1,33 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-import pickle
+from transformers import (
+   AutoTokenizer,
+   TFAutoModelForSequenceClassification,
+)
+import tensorflow as tf
 import sys
+import numpy as np
 import sqlalchemy
 from db import getconn
 
 app = Flask(__name__)
 
-app.secret_key = "3d6f45a5fc12445dbac2f59c3b6c7cb122" 
-
-# Función que se encarga de aplizar TfidfVectorizer sobre el texto 
-# se recibe el texto enviado por el usuario
-# se devuelve la sparse matrix asociada
-def vectorizar(text):
-    # Lectura del vectorizador 
-    vectorizer = pickle.load(open('pickle/tfidf.pkl', 'rb'))
-    # Transformación del texto de entrada
-    new_data_vec = vectorizer.transform([text])
-    return new_data_vec
+app.secret_key = "3d6f45a5fc12445dbac2f59c3b6c7cb134" 
 
 # Función que se encarga de realizar la predicción 
 # se recibe el texto producto de la vectorización
 # se devuelve el resultado del texto si es clasificado como positivo o negativo
-def predict_model(data_vec):
+def predict_model(input_text):
     # Lectura del mejor modelo
-    loaded_model = pickle.load(open('pickle/machine_learning_best_model.pkl', 'rb'))
-    # Predicción
-    prediction = loaded_model.predict(data_vec)
+    tokenizer = AutoTokenizer.from_pretrained("model/tokenizer")
+    model = TFAutoModelForSequenceClassification.from_pretrained("model/modelo")
+    # Tokenizamos esa frase (encode)
+    input_ids = tf.constant(tokenizer.encode(input_text, add_special_tokens=True))[None, :]
+    # Predecimos
+    pred = model.predict(input_ids)["logits"]
+    # Indice del argumento máximo
+    preds = np.argmax(pred,axis=1)
     # Resultado
-    result = "Reseña positiva" if prediction[0] == 1 else "Reseña negativa"
+    result = "Reseña positiva" if preds[0] == 1 else "Reseña negativa"
     return result
 
 @app.route('/')
@@ -77,8 +74,7 @@ def dashboard():
 def predict():
     if request.method == 'POST':
         text = request.form['textpredict']
-        data_vec = vectorizar(text)
-        predict_result = predict_model(data_vec)
+        predict_result = predict_model(text)
         if predict_result == "Reseña positiva":
             final_result = '<h4 >La reseña ha sido clasificada como: <b style="color:green !important">Positiva</b></h4>'
         else:
